@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import react, { useState, useEffect } from "react"
 import { Grid, Box, Typography, Paper, Chip, ToggleButtonGroup, ToggleButton } from "@mui/material"
 import TrendingUpIcon from "@mui/icons-material/TrendingUp"
 import TrendingDownIcon from "@mui/icons-material/TrendingDown"
@@ -9,19 +9,18 @@ import GrassIcon from "@mui/icons-material/Grass"
 import Card from "../components/Card"
 import Chart from "../components/Chart"
 import Alerts from "../components/Alerts"
+import { Select, MenuItem, Button, CircularProgress } from "@mui/material"
 
-const commodities = [
-  { name: "Onion", currentPrice: 35.5, change: 2.5, trend: "up" },
-  { name: "Potato", currentPrice: 22.75, change: -1.2, trend: "down" },
-  { name: "Gram", currentPrice: 78.3, change: 0.8, trend: "up" },
-  { name: "Masur", currentPrice: 92.15, change: -0.5, trend: "down" },
-  { name: "Tur", currentPrice: 105.6, change: 3.2, trend: "up" },
-]
 
 const Dashboard = () => {
   const [state, setState] = useState("all")
   const [commodity, setCommodity] = useState("all")
   const [timeframe, setTimeframe] = useState("monthly")
+  const [selectedCommodity, setSelectedCommodity] = useState("")
+  const [commodities, setCommodities] = useState([])
+  const [predictedPrice, setPredictedPrice] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   const handleStateChange = (event, newState) => {
     if (newState !== null) {
@@ -35,12 +34,53 @@ const Dashboard = () => {
     }
   }
 
+  useEffect(() => {
+    const fetchCommodities = async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:5000/commodities")
+        const data = await response.json()
+        setCommodities(data.commodities)
+      } catch (error) {
+        console.error("Failed to fetch commodities:", error)
+      }
+    }
+    fetchCommodities()
+  }, [])
+
   const handleTimeframeChange = (event, newTimeframe) => {
     if (newTimeframe !== null) {
       setTimeframe(newTimeframe)
     }
   }
 
+  const fetchPrediction = async () => {
+    if (!selectedCommodity) return;
+  
+    setLoading(true);
+    setError(null);
+    try {
+      console.log(`Fetching prediction for: ${selectedCommodity}`);  // Debug log
+      const response = await fetch(`http://127.0.0.1:5000/predict?commodity=${selectedCommodity}`);
+      const data = await response.json();
+      console.log("Response received:", data); // Log API response
+  
+      if (response.ok) {
+        setPredictedPrice(data.predicted_price);
+      } else {
+        console.error("Error fetching prediction:", data.error);
+        throw new Error(data.error || "Failed to fetch prediction")
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      setError(error.message)
+      setPredictedPrice(null)
+      
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
   return (
     <Box sx={{ p: 3, height: "100%", overflow: "auto" }}>
       <Typography variant="h5" fontWeight="bold" mb={3}>
@@ -132,7 +172,42 @@ const Dashboard = () => {
           </Paper>
         </Grid>
 
-        {/* Current Market Prices */}
+
+{/* Predicted Commodity Prices */}
+<Grid item xs={12} md={4}>
+          <Card title="Predicted Commodity Prices" icon={<GrassIcon color="success" />}>            
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Select
+                value={selectedCommodity}
+                onChange={(e) => setSelectedCommodity(e.target.value)}
+                displayEmpty
+                fullWidth
+              >
+                <MenuItem value="" disabled>Select a Commodity</MenuItem>
+                {commodities.map((commodity) => (
+                  <MenuItem key={commodity} value={commodity}>
+                    {commodity}
+                  </MenuItem>
+                ))}
+              </Select>
+
+
+              <Button variant="contained" color="primary" onClick={fetchPrediction} disabled={!selectedCommodity || loading}>
+                {loading ? <CircularProgress size={24} color="inherit" /> : "Get Predicted Price"}
+              </Button>
+
+              {/* {error && <Typography color="error">{error}</Typography>} */}
+
+              {predictedPrice !== null && (
+                <Typography variant="h6" fontWeight="bold">
+                  Predicted Price: ₹{predictedPrice}/kg
+                </Typography>
+              )}
+            </Box>
+          </Card>
+        </Grid>
+
+        {/* Current Market Prices
         <Grid item xs={12} md={4}>
           <Card title="Current Market Prices" icon={<GrassIcon color="success" />}>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -174,7 +249,7 @@ const Dashboard = () => {
               ))}
             </Box>
           </Card>
-        </Grid>
+        </Grid> */}
 
         {/* Price Trend Chart */}
         {/* <Grid item xs={12} md={8}>
