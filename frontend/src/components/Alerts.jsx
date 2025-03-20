@@ -56,10 +56,10 @@ const getAlertColor = (severity) => {
 
 const Alerts = () => {
   return (
-    <Card title="Price Alerts" icon={<WarningIcon color="warning" />}>
+    <Card title="Price Alerts"  icon={<WarningIcon color="warning" />} >
       <Stack spacing={2}>
         {alerts.map((alert) => (
-          <Box
+          <Box width="100%"
             key={alert.id}
             sx={{
               p: 1.5,

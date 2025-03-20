@@ -165,6 +165,34 @@ def get_commodities():
     commodities = sorted(df["Commodity"].unique())
     return jsonify({"commodities": commodities})
 
+
+@app.route("/price-trend", methods=["GET"])
+def price_trend():
+    commodity_name = request.args.get("commodity", "").strip().lower()
+    timeframe = request.args.get("timeframe", "weekly").strip().lower()
+
+    if not commodity_name:
+        return jsonify({"error": "Commodity name is required"}), 400
+
+    if commodity_name not in df["Commodity"].unique():
+        return jsonify({"error": f"Commodity '{commodity_name}' not found"}), 400
+
+    commodity_data = df[df["Commodity"] == commodity_name].sort_values(by="Date")
+
+    today = commodity_data["Date"].max()
+
+    if timeframe == "weekly":
+        trend_data = commodity_data[commodity_data["Date"] >= today - pd.Timedelta(days=7)]
+    elif timeframe == "monthly":
+        trend_data = commodity_data.groupby(commodity_data["Date"].dt.to_period("M")).agg({"Date": "max", "Retail Price (₹/kg)": "mean"}).tail(8)
+    elif timeframe == "yearly":
+        trend_data = commodity_data.groupby(commodity_data["Date"].dt.to_period("Y")).agg({"Date": "max", "Retail Price (₹/kg)": "mean"}).tail(8)
+    else:
+        return jsonify({"error": "Invalid timeframe"}), 400
+
+    return jsonify({"commodity": commodity_name, "trend": trend_data.to_dict(orient="records")})
+
+
 @app.route("/predict", methods=["GET"])
 def predict_price():
     """Predict commodity price using XGBoost."""
@@ -178,7 +206,8 @@ def predict_price():
 
     # 🔹 Filter Commodity Data
     commodity_data = df[df["Commodity"] == commodity_name].sort_values(by="Date")
-    commodity_data["Days_Since_Start"] = (commodity_data["Date"] - commodity_data["Date"].min()).dt.days
+
+    commodity_data["Days_Since"] = (commodity_data["Date"] - commodity_data["Date"].min()).dt.days
 
     # 🔹 Train XGBoost Model
     X = commodity_data[['Days_Since_Start']]
@@ -187,8 +216,9 @@ def predict_price():
     model = xgb.XGBRegressor(objective="reg:squarederror", n_estimators=100)
     model.fit(X, y)
 
-    today_num = (datetime.datetime.today() - commodity_data["Date"].min()).days
-    predicted_price = model.predict(np.array([[today_num]]))[0]
+    # Predict for today's date
+    today = (datetime.datetime.today() - commodity_data["Date"].min()).days
+    predicted_price = model.predict(np.array([[today]]))[0]
 
     return jsonify({
         "commodity": commodity_name.capitalize(),

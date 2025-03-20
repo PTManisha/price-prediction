@@ -1,203 +1,126 @@
-"use client"
+"use client";
 
-import react, { useState, useEffect } from "react"
-import { Grid, Box, Typography, Paper, Chip, ToggleButtonGroup, ToggleButton } from "@mui/material"
-import TrendingUpIcon from "@mui/icons-material/TrendingUp"
-import TrendingDownIcon from "@mui/icons-material/TrendingDown"
-import LightbulbIcon from "@mui/icons-material/Lightbulb"
-import GrassIcon from "@mui/icons-material/Grass"
-import Card from "../components/Card"
-import Chart from "../components/Chart"
-import Alerts from "../components/Alerts"
-import { Select, MenuItem, Button, CircularProgress } from "@mui/material"
-
+import React, { useState, useEffect } from "react";
+import {
+  Grid, Box, Typography, Paper, ToggleButtonGroup, ToggleButton, Select, MenuItem, Button, CircularProgress
+} from "@mui/material";
+import GrassIcon from "@mui/icons-material/Grass";
+import LightbulbIcon from "@mui/icons-material/Lightbulb";
+import Card from "../components/Card";
+import Chart from "../components/Chart";
+import Alerts from "../components/Alerts";
 
 const Dashboard = () => {
-  const [state, setState] = useState("all")
-  const [commodity, setCommodity] = useState("all")
-  const [timeframe, setTimeframe] = useState("monthly")
-  const [selectedCommodity, setSelectedCommodity] = useState("")
-  const [commodities, setCommodities] = useState([])
-  const [predictedPrice, setPredictedPrice] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  const handleStateChange = (event, newState) => {
-    if (newState !== null) {
-      setState(newState)
-    }
-  }
-
-  const handleCommodityChange = (event, newCommodity) => {
-    if (newCommodity !== null) {
-      setCommodity(newCommodity)
-    }
-  }
-
+  const [state, setState] = useState("all");
+  const [commodity, setCommodity] = useState("all");
+  const [timeframe, setTimeframe] = useState("monthly");
+  const [selectedCommodity, setSelectedCommodity] = useState("");
+  const [commodities, setCommodities] = useState([]);
+  const [predictedPrice, setPredictedPrice] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [priceTrend, setPriceTrend] = useState([]);
+  
+  
   useEffect(() => {
     const fetchCommodities = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:5000/commodities")
-        const data = await response.json()
-        setCommodities(data.commodities)
+        const response = await fetch("http://127.0.0.1:5000/commodities");
+        const data = await response.json();
+        setCommodities(data.commodities);
       } catch (error) {
-        console.error("Failed to fetch commodities:", error)
+        console.error("Failed to fetch commodities:", error);
       }
-    }
-    fetchCommodities()
-  }, [])
-
-  const handleTimeframeChange = (event, newTimeframe) => {
-    if (newTimeframe !== null) {
-      setTimeframe(newTimeframe)
-    }
-  }
+    };
+    fetchCommodities();
+  }, []);
 
   const fetchPrediction = async () => {
     if (!selectedCommodity) return;
-  
+
     setLoading(true);
     setError(null);
     try {
-      console.log(`Fetching prediction for: ${selectedCommodity}`);  // Debug log
       const response = await fetch(`http://127.0.0.1:5000/predict?commodity=${selectedCommodity}`);
       const data = await response.json();
-      console.log("Response received:", data); // Log API response
-  
+
       if (response.ok) {
         setPredictedPrice(data.predicted_price);
       } else {
-        console.error("Error fetching prediction:", data.error);
-        throw new Error(data.error || "Failed to fetch prediction")
+        throw new Error(data.error || "Failed to fetch prediction");
       }
     } catch (error) {
-      console.error("Error:", error);
-      setError(error.message)
-      setPredictedPrice(null)
-      
+      setError(error.message);
+      setPredictedPrice(null);
     } finally {
       setLoading(false);
     }
   };
 
-  
+  const fetchPriceTrend = async () => {
+    if (!selectedCommodity) return;
+
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/price-trend?commodity=${selectedCommodity}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        // Convert API response to a format suitable for the Chart component
+        const formattedTrend = data.trend.map(item => ({
+          date: new Date(item.Date).toISOString().split("T")[0], // Convert to YYYY-MM-DD
+          price: item["Retail Price (\u20b9/kg)"]                // Extract price
+        }));
+
+        setPriceTrend(formattedTrend);
+        console.log("Formatted Trend Data:", formattedTrend);
+      } else {
+        console.error("Error fetching price trend:", data.error);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
+
+  // Automatically fetch price trend when selectedCommodity changes
+  useEffect(() => {
+    if (selectedCommodity) {
+      fetchPriceTrend();
+    }
+  }, [selectedCommodity, timeframe]);
+
   return (
     <Box sx={{ p: 3, height: "100%", overflow: "auto" }}>
       <Typography variant="h5" fontWeight="bold" mb={3}>
         Market Dashboard
       </Typography>
 
-      <Grid container spacing={3}>
-        {/* Filters */}
-        <Grid item xs={12}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              borderRadius: 3,
-              bgcolor: "#e8f5e9",
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 2,
-            }}
-          >
+    {/* Predicted Commodity Prices */}
+      <Grid container spacing={4}>
+        <Grid item xs={12} md={4} height={400}>
+        <Card title="Predicted Commodity Prices" icon={<GrassIcon color="success" />}>
             <Box>
-              <Typography variant="body2" color="text.secondary" mb={0.5}>
-                State
-              </Typography>
-              <ToggleButtonGroup
-                value={state}
-                exclusive
-                onChange={handleStateChange}
-                size="small"
-                sx={{ bgcolor: "white", borderRadius: 2 }}
-              >
-                <ToggleButton value="all" sx={{ borderRadius: 2 }}>
-                  All
-                </ToggleButton>
-                <ToggleButton value="delhi" sx={{ borderRadius: 2 }}>
-                  Delhi
-                </ToggleButton>
-                <ToggleButton value="maharashtra" sx={{ borderRadius: 2 }}>
-                  Maharashtra
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-
-            <Box>
-              <Typography variant="body2" color="text.secondary" mb={0.5}>
+              <Typography variant="body2" color="text.secondary" mb={2}>
                 Commodity
               </Typography>
-              <ToggleButtonGroup
-                value={commodity}
-                exclusive
-                onChange={handleCommodityChange}
-                size="small"
-                sx={{ bgcolor: "white", borderRadius: 2 }}
-              >
-                <ToggleButton value="all" sx={{ borderRadius: 2 }}>
-                  All
-                </ToggleButton>
-                <ToggleButton value="pulses" sx={{ borderRadius: 2 }}>
-                  Pulses
-                </ToggleButton>
-                <ToggleButton value="vegetables" sx={{ borderRadius: 2 }}>
-                  Vegetables
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-
-            <Box>
-              <Typography variant="body2" color="text.secondary" mb={0.5}>
-                Timeframe
-              </Typography>
-              <ToggleButtonGroup
-                value={timeframe}
-                exclusive
-                onChange={handleTimeframeChange}
-                size="small"
-                sx={{ bgcolor: "white", borderRadius: 2 }}
-              >
-                <ToggleButton value="daily" sx={{ borderRadius: 2 }}>
-                  Daily
-                </ToggleButton>
-                <ToggleButton value="weekly" sx={{ borderRadius: 2 }}>
-                  Weekly
-                </ToggleButton>
-                <ToggleButton value="monthly" sx={{ borderRadius: 2 }}>
-                  Monthly
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-          </Paper>
-        </Grid>
-
-
-{/* Predicted Commodity Prices */}
-<Grid item xs={12} md={4}>
-          <Card title="Predicted Commodity Prices" icon={<GrassIcon color="success" />}>            
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <Select
-                value={selectedCommodity}
-                onChange={(e) => setSelectedCommodity(e.target.value)}
-                displayEmpty
-                fullWidth
-              >
-                <MenuItem value="" disabled>Select a Commodity</MenuItem>
+              <Box mb={4} >
+              <Select value={selectedCommodity} onChange={(e) => setSelectedCommodity(e.target.value)} displayEmpty fullWidth>
+                <MenuItem value="" disabled>
+                  Select a Commodity
+                </MenuItem>
                 {commodities.map((commodity) => (
                   <MenuItem key={commodity} value={commodity}>
                     {commodity}
                   </MenuItem>
                 ))}
-              </Select>
-
-
-              <Button variant="contained" color="primary" onClick={fetchPrediction} disabled={!selectedCommodity || loading}>
+              </Select></Box>
+            </Box>
+          
+         
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <Button variant="contained" mt={2} color="primary" onClick={fetchPrediction} disabled={!selectedCommodity || loading}>
                 {loading ? <CircularProgress size={24} color="inherit" /> : "Get Predicted Price"}
               </Button>
-
-              {/* {error && <Typography color="error">{error}</Typography>} */}
-
+              {error && <Typography color="error">{error}</Typography>}
               {predictedPrice !== null && (
                 <Typography variant="h6" fontWeight="bold">
                   Predicted Price: ₹{predictedPrice}/kg
@@ -205,140 +128,74 @@ const Dashboard = () => {
               )}
             </Box>
           </Card>
+         
         </Grid>
 
-        {/* Current Market Prices
-        <Grid item xs={12} md={4}>
-          <Card title="Current Market Prices" icon={<GrassIcon color="success" />}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              {commodities.map((item) => (
-                <Paper
-                  key={item.name}
-                  elevation={0}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 2,
-                    bgcolor: "white",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Typography variant="body2" fontWeight="medium">
-                    {item.name}
-                  </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Typography variant="body2" fontWeight="bold">
-                      ₹{item.currentPrice}/kg
-                    </Typography>
-                    <Chip
-                      icon={
-                        item.trend === "up" ? (
-                          <TrendingUpIcon fontSize="small" />
-                        ) : (
-                          <TrendingDownIcon fontSize="small" />
-                        )
-                      }
-                      label={`${item.change > 0 ? "+" : ""}${item.change}%`}
-                      size="small"
-                      color={item.trend === "up" ? "error" : "success"}
-                      sx={{ height: 24 }}
-                    />
-                  </Box>
-                </Paper>
-              ))}
-            </Box>
-          </Card>
-        </Grid> */}
+  {/* Price Trend Chart with Toggle Buttons */}
+  <Grid item xs={12} md={8} height={400}>
+  <Paper
+    sx={{
+      p: 2,
+      borderRadius: 3,
+      bgcolor: "#e8f5e9",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      height: 360,
+    }}
+  >
+    {/* Title & Timeframe Toggle Buttons */}
+    <Box
+      sx={{
+        width: "100%",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mb: 1,
+      }}
+    >
+      <Typography variant="h6" sx={{ display: "flex", alignItems: "center" }}>
+        <GrassIcon color="success" sx={{ mr: 1 }} />
+        Price Trends (₹/kg)
+      </Typography>
 
-        {/* Price Trend Chart */}
-        {/* <Grid item xs={12} md={8}>
-          <Chart title="Price Trends (₹/kg)" />
-        </Grid> */}
+      <ToggleButtonGroup
+        value={timeframe}
+        exclusive
+        onChange={(event, newTimeframe) => setTimeframe(newTimeframe)}
+        size="small"
+      >
+        <ToggleButton value="weekly">Weekly</ToggleButton>
+        <ToggleButton value="monthly">Monthly</ToggleButton>
+        <ToggleButton value="yearly">Yearly</ToggleButton>
+      </ToggleButtonGroup>
+    </Box>
+
+    {/* Chart Component */}
+    <Box mb={1} sx={{ width: "100%", flex: 1 }}>
+      <Chart data={priceTrend} />
+    </Box>
+  </Paper>
+</Grid>
 
         {/* AI Suggestions */}
-        <Grid item xs={12}>
+        {/* <Grid item xs={12}>
           <Card title="AI Suggestions" icon={<LightbulbIcon color="warning" />}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                bgcolor: "white",
-              }}
-            >
-              <Typography variant="body2" paragraph>
-                <strong>Market Analysis:</strong> Based on current trends, onion prices are expected to increase by 8%
-                in the next 7 days due to supply constraints in major producing regions. Consider releasing 2,000 MT
-                from buffer stocks in Delhi, Mumbai, and Kolkata markets to stabilize prices.
-              </Typography>
-              <Typography variant="body2" paragraph>
-                <strong>Price Stabilization:</strong> Potato prices are showing a downward trend (-1.2%) which aligns
-                with seasonal patterns. No intervention is recommended at this time.
-              </Typography>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: "white" }}>
               <Typography variant="body2">
-                <strong>Buffer Stock Management:</strong> Current Tur Dal buffer stocks are at 18,000 MT, which is below
-                the recommended threshold of 20,000 MT. Consider procurement in the next 14 days to maintain adequate
-                stock levels for market interventions.
+                <strong>Market Analysis:</strong> Monitor price trends for strategic buffer stock release.
               </Typography>
             </Paper>
           </Card>
-        </Grid>
+        </Grid> */}
 
         {/* Price Alerts */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={6} width="100%" >
           <Alerts />
-        </Grid>
-
-        {/* Market Volatility */}
-        <Grid item xs={12} md={6}>
-          <Card title="Market Volatility & Risk Indicator">
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              {commodities.map((item) => (
-                <Paper
-                  key={item.name}
-                  elevation={0}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 2,
-                    bgcolor: "white",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Typography variant="body2" fontWeight="medium">
-                    {item.name}
-                  </Typography>
-                  <Chip
-                    label={item.trend === "up" ? "High" : "Low"}
-                    size="small"
-                    color={item.trend === "up" ? "warning" : "success"}
-                    sx={{ height: 24 }}
-                  />
-                </Paper>
-              ))}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 1.5,
-                  borderRadius: 2,
-                  bgcolor: "white",
-                  mt: 1,
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Weather Impact:</strong> Delayed monsoon in Maharashtra and Karnataka may affect onion
-                  production in the coming months. Monitor closely for potential price volatility.
-                </Typography>
-              </Paper>
-            </Box>
-          </Card>
         </Grid>
       </Grid>
     </Box>
-  )
-}
+  );
+};
 
-export default Dashboard
-
+export default Dashboard;
