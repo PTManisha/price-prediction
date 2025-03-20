@@ -192,38 +192,66 @@ def price_trend():
 
     return jsonify({"commodity": commodity_name, "trend": trend_data.to_dict(orient="records")})
 
-
 @app.route("/predict", methods=["GET"])
 def predict_price():
-    """Predict commodity price using XGBoost."""
     commodity_name = request.args.get("commodity", "").strip().lower()
-
+    
     if not commodity_name:
         return jsonify({"error": "Commodity name is required"}), 400
 
     if commodity_name not in df["Commodity"].unique():
         return jsonify({"error": f"Commodity '{commodity_name}' not found"}), 400
 
-    # 🔹 Filter Commodity Data
+    # Filter commodity data
     commodity_data = df[df["Commodity"] == commodity_name].sort_values(by="Date")
+    commodity_data["Days_Since_Start"] = (commodity_data["Date"] - commodity_data["Date"].min()).dt.days
 
-    commodity_data["Days_Since"] = (commodity_data["Date"] - commodity_data["Date"].min()).dt.days
-
-    # 🔹 Train XGBoost Model
+    # Train XGBoost model
     X = commodity_data[['Days_Since_Start']]
     y = commodity_data['Retail Price (₹/kg)']
 
     model = xgb.XGBRegressor(objective="reg:squarederror", n_estimators=100)
     model.fit(X, y)
 
-    # Predict for today's date
-    today = (datetime.datetime.today() - commodity_data["Date"].min()).days
-    predicted_price = model.predict(np.array([[today]]))[0]
+    today_num = (datetime.datetime.today() - commodity_data["Date"].min()).days
+    predicted_price = model.predict(np.array([[today_num]]))[0]
 
     return jsonify({
         "commodity": commodity_name.capitalize(),
         "predicted_price": round(float(predicted_price), 2)
     })
+
+# @app.route("/predict", methods=["GET"])
+# def predict_price():
+#     """Predict commodity price using XGBoost."""
+#     commodity_name = request.args.get("commodity", "").strip().lower()
+
+#     if not commodity_name:
+#         return jsonify({"error": "Commodity name is required"}), 400
+
+#     if commodity_name not in df["Commodity"].unique():
+#         return jsonify({"error": f"Commodity '{commodity_name}' not found"}), 400
+
+#     # 🔹 Filter Commodity Data
+#     commodity_data = df[df["Commodity"] == commodity_name].sort_values(by="Date")
+
+#     commodity_data["Days_Since"] = (commodity_data["Date"] - commodity_data["Date"].min()).dt.days
+
+#     # 🔹 Train XGBoost Model
+#     X = commodity_data[['Days_Since_Start']]
+#     y = commodity_data['Retail Price (₹/kg)']
+
+#     model = xgb.XGBRegressor(objective="reg:squarederror", n_estimators=100)
+#     model.fit(X, y)
+
+#     # Predict for today's date
+#     today = (datetime.datetime.today() - commodity_data["Date"].min()).days
+#     predicted_price = model.predict(np.array([[today]]))[0]
+
+#     return jsonify({
+#         "commodity": commodity_name.capitalize(),
+#         "predicted_price": round(float(predicted_price), 2)
+#     })
 
 def preprocess_text(text):
     """Tokenize text using regex instead of nltk."""
