@@ -22,15 +22,17 @@ import LocalShippingIcon from "@mui/icons-material/LocalShipping"
 import BalanceIcon from "@mui/icons-material/Balance"
 import Card from "../components/Card"
 import Chart from "../components/Chart"
+import LightbulbIcon from "@mui/icons-material/Lightbulb"
 
 // Buffer stock data
 const bufferStocks = [
-  { commodity: "Gram", stock: 22000, capacity: 25000, unit: "MT" },
+  { commodity: "Gram", stock: 12000, capacity: 25000, unit: "MT" },
   { commodity: "Tur", stock: 18000, capacity: 20000, unit: "MT" },
   { commodity: "Urad", stock: 15000, capacity: 18000, unit: "MT" },
   { commodity: "Moong", stock: 12000, capacity: 15000, unit: "MT" },
   { commodity: "Masur", stock: 16000, capacity: 20000, unit: "MT" },
   { commodity: "Onion", stock: 35000, capacity: 40000, unit: "MT" },
+  { commodity: "Rice ", stock: 23000, capacity: 56000 , unit:"MT"}
 ]
 
 // Recent stock releases
@@ -161,10 +163,19 @@ const BufferStock = () => {
           </Card>
         </Grid>
 
-       
+       {/* AI Suggestions */}
+       <Grid item xs={12}>
+          <Card title="AI Suggestions" icon={<LightbulbIcon color="warning" />}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: "white" }}>
+              <Typography variant="body2">
+                <strong>Market Analysis:</strong> Monitor price trends for strategic buffer stock release.
+              </Typography>
+            </Paper>
+          </Card>
+        </Grid>
 
         {/* Recent Stock Releases */}
-        <Grid item xs={12}>
+        {/* <Grid item xs={12}>
           <Card title="Recent & Upcoming Stock Releases" icon={<LocalShippingIcon color="primary" />}>
             <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: "none" }}>
               <Table sx={{ minWidth: 650 }} size="small">
@@ -199,7 +210,7 @@ const BufferStock = () => {
               </Table>
             </TableContainer>
           </Card>
-        </Grid>
+        </Grid> */}
 
         {/* Price Stabilization Measures */}
         <Grid item xs={12}>
