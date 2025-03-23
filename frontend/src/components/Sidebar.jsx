@@ -75,7 +75,7 @@ const Sidebar = () => {
           </ListItem>
         ))}
       </List>
-
+{/* 
       <Stack direction="row" spacing={1} sx={{ p: 2 }}>
         <Button
           variant="contained"
@@ -99,10 +99,9 @@ const Sidebar = () => {
         >
           Logout
         </Button>
-      </Stack>
+      </Stack> */}
     </Box>
   )
 }
 
 export default Sidebar
-

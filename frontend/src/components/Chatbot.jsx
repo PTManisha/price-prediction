@@ -1,95 +1,205 @@
+// import { useState, useRef, useEffect } from "react";
+// import { Box, TextField, IconButton, Typography, Paper, Avatar, CircularProgress } from "@mui/material";
+// import SendIcon from "@mui/icons-material/Send";
+// import SmartToyIcon from "@mui/icons-material/SmartToy";
+// import PersonIcon from "@mui/icons-material/Person";
+// import axios from "axios";
+
+// const ChatBot = () => {
+//   const [messages, setMessages] = useState([
+//     { id: 1, text: "Hello! Ask me anything about commodity prices, trends, or market analysis.", sender: "bot" }
+//   ]);
+//   const [input, setInput] = useState("");
+//   const [loading, setLoading] = useState(false);
+//   const messagesEndRef = useRef(null);
+
+//   useEffect(() => {
+//     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+//   }, [messages]);
+
+//   const handleSend = async () => {
+//     if (!input.trim()) return;
+
+//     const userMessage = { id: messages.length + 1, text: input, sender: "user" };
+//     setMessages((prev) => [...prev, userMessage]);
+//     setInput("");
+//     setLoading(true);
+
+//     try {
+//       // const response = await axios.post("http://localhost:5000/chat", { message: input });
+//       const response = await axios.post("http://127.0.0.1:5000/chat", { message: input });
+
+
+//       let botText = response.data.response || "Sorry, I couldn't find an answer.";
+//       if (Array.isArray(botText)) {
+//         botText = botText.slice(0, 5).map(obj => JSON.stringify(obj, null, 2)).join("\n\n");
+//       } else if (typeof botText === "object") {
+//         botText = JSON.stringify(botText, null, 2);
+//       }
+
+//       const botMessage = { id: messages.length + 2, text: botText, sender: "bot" };
+//       setMessages((prev) => [...prev, botMessage]);
+//     } catch (error) {
+//       console.error("Error fetching response:", error);
+//       setMessages((prev) => [...prev, { id: messages.length + 2, text: "Error fetching response. Please try again.", sender: "bot" }]);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   return (
+//     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", p: 2, maxWidth: 600, mx: "auto" }}>
+//       <Typography variant="h6" fontWeight="bold" mb={2} textAlign="center">
+//         Commodity Price Chatbot
+//       </Typography>
+
+//       <Paper sx={{ flex: 1, p: 2, mb: 2, borderRadius: 3, bgcolor: "#f5f5f5", overflowY: "auto", height: 400 }}>
+//         {messages.map((message) => (
+//           <Box key={message.id} sx={{ display: "flex", justifyContent: message.sender === "user" ? "flex-end" : "flex-start", mb: 2 }}>
+//             {message.sender === "bot" && <Avatar sx={{ bgcolor: "#4CAF50", width: 32, height: 32, mr: 1 }}><SmartToyIcon /></Avatar>}
+//             <Paper sx={{ p: 1.5, borderRadius: 3, bgcolor: message.sender === "user" ? "#4CAF50" : "#e8f5e9", color: message.sender === "user" ? "white" : "inherit", maxWidth: "70%", wordBreak: "break-word" }}>
+//               <Typography variant="body2">{message.text}</Typography>
+//             </Paper>
+//             {message.sender === "user" && <Avatar sx={{ bgcolor: "#81C784", width: 32, height: 32, ml: 1 }}><PersonIcon /></Avatar>}
+//           </Box>
+//         ))}
+//         {loading && <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}><CircularProgress size={24} /></Box>}
+//         <div ref={messagesEndRef} />
+//       </Paper>
+
+//       <Box sx={{ display: "flex", gap: 1 }}>
+//         <TextField
+//           fullWidth
+//           placeholder="Ask about prices, trends, or predictions..."
+//           value={input}
+//           onChange={(e) => setInput(e.target.value)}
+//           onKeyDown={(e) => {
+//             if (e.key === "Enter" && !e.shiftKey) {
+//               e.preventDefault();
+//               handleSend();
+//             }
+//           }}
+//           disabled={loading}
+//         />
+//         <IconButton color="primary" onClick={handleSend} disabled={!input.trim() || loading}>
+//           <SendIcon />
+//         </IconButton>
+//       </Box>
+//     </Box>
+//   );
+// };
+
+// export default ChatBot;
+
+
 import { useState, useRef, useEffect } from "react";
-import { Box, TextField, IconButton, Typography, Paper, Avatar, CircularProgress } from "@mui/material";
+import { Box, TextField, IconButton, Typography, Paper, Avatar, Button } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import PersonIcon from "@mui/icons-material/Person";
-import axios from "axios";
+import * as XLSX from "xlsx";
 
-const ChatbotComponent = () => {
+const predefinedQuestions = [
+  "average wholesale price of rice over the years?",
+  "average wholesale price of wheat over the years?",
+  "price of rice changed over the years?",
+  "price of wheat changed over the years?",
+  "price of milk on a specific date?",
+  "What is today's price of any commodity?",
+  "price of urad dal", 
+  "price of masur dal",
+  "price of milk",
+  "price of onion"
+];
+
+
+const predefinedAnswers = {
+  "average wholesale price of rice over the years?": "The average wholesale price of rice from 2014 to 2024 is approximately ₹34.51 per kg.",
+  "average wholesale price of wheat over the years?": "The average wholesale price of wheat from 2014 to 2024 is approximately ₹28.76 per kg.",
+  "price of rice changed over the years?": "The yearly average wholesale prices of rice from 2014 to 2024 are: {2014: ₹30.02, 2015: ₹30.85, 2016: ₹31.83, 2017: ₹32.78, 2018: ₹33.60, 2019: ₹34.43, 2020: ₹35.41, 2021: ₹36.38, 2022: ₹37.21, 2023: ₹38.03, 2024: ₹39.02}",
+  "price of wheat changed over the years?": "The yearly average wholesale prices of wheat from 2014 to 2024 are: {2014: ₹25.01, 2015: ₹25.76, 2016: ₹26.43, 2017: ₹27.34, 2018: ₹28.07, 2019: ₹28.83, 2020: ₹29.57, 2021: ₹30.18, 2022: ₹31.01, 2023: ₹31.69, 2024: ₹32.48}",
+  "price of milk on a specific date?": "Please provide a date to check the price of milk. For example, 'What was the price of milk on January 1, 2023?'.",
+  "What is today's price of any commodity?": "Please specify the commodity name to check today's price.",
+  "price of masur dal":"price is ₹190.97 per kg ", 
+  "price of palm oil":"₹104.46 per litre",
+  "price of milk":"₹40.00 per litre",
+  "price of onion":"₹34.98 per kg"
+
+};
+
+const ChatBot = () => {
   const [messages, setMessages] = useState([
     { id: 1, text: "Hello! Ask me anything about commodity prices, trends, or market analysis.", sender: "bot" }
   ]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [commodityData, setCommodityData] = useState({});
   const messagesEndRef = useRef(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // const handleSend = async () => {
-  //   if (input.trim() === "") return;
+  useEffect(() => {
+    fetchCommodityData();
+  }, []);
 
-  //   const userMessage = { id: messages.length + 1, text: input, sender: "user" };
-  //   setMessages((prev) => [...prev, userMessage]);
-  //   setInput("");
-  //   setLoading(true);
-
-  //   try {
-  //     const response = await axios.post("http://127.0.0.1:5000/chat", { message: input });
-
-  //     const botMessage = {
-  //       id: messages.length + 2,
-  //       text: response.data.response || "Sorry, I couldn't find an answer.",
-  //       sender: "bot"
-  //     };
-
-  //     setMessages((prev) => [...prev, botMessage]);
-  //   } catch (error) {
-  //     console.error("Error fetching response:", error);
-  //     setMessages((prev) => [...prev, { id: messages.length + 2, text: "Error fetching response. Please try again.", sender: "bot" }]);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-
-  const handleSend = async () => {
-    if (input.trim() === "") return;
-  
-    const userMessage = { id: messages.length + 1, text: input, sender: "user" };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
-  
+  const fetchCommodityData = async () => {
     try {
-      const response = await axios.post("http://127.0.0.1:5000/chat", { message: input });
-  
-      console.log("API Response:", response.data); // ✅ Debugging
-  
-      let botText = response.data.response || response.data.error || "Sorry, something went wrong.";
-  
-      // ✅ If response is an array, limit displayed rows to avoid browser crash
-      if (Array.isArray(botText)) {
-        botText = botText.slice(0, 5).map(obj => JSON.stringify(obj, null, 2)).join("\n\n"); // ✅ Show only 10
-      } else if (typeof botText === "object") {
-        botText = JSON.stringify(botText, null, 2);
-      }
-  
-      const botMessage = {
-        id: messages.length + 2,
-        text: botText,
-        sender: "bot",
-      };
-  
-      setMessages((prev) => [...prev, botMessage]);
+      const response = await fetch("price-prediction\backend\data\mock_commodity_prices_2014_2024.csv");
+      const arrayBuffer = await response.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(sheet);
+      const formattedData = {};
+      data.forEach(row => {
+        const date = row.Date;
+        delete row.Date;
+        formattedData[date] = row;
+      });
+      setCommodityData(formattedData);
     } catch (error) {
-      console.error("Error fetching response:", error);
-      setMessages((prev) => [
-        ...prev,
-        { id: messages.length + 2, text: "Error fetching response. Please try again.", sender: "bot" },
-      ]);
-    } finally {
-      setLoading(false);
+      console.error("Error loading commodity data:", error);
     }
   };
+
+  const handleSend = (question = input) => {
+    if (!question.trim()) return;
   
+    const userMessage = { id: messages.length + 1, text: question, sender: "user" };
+    setMessages((prev) => [...prev.slice(-3), userMessage]);
+    setInput("");
   
+    let botText = predefinedAnswers[question] || "I'm sorry, I don't have information on that.";
   
+    // Handle queries for commodity prices on specific dates
+    const priceMatch = question.match(/What was the price of (.+) on (.+)\?/i);
+    if (priceMatch) {
+      let commodity = priceMatch[1].trim().toLowerCase(); // Standardize commodity name
+      let dateInput = priceMatch[2].trim(); // Keep date in DD-MM-YYYY format
+  
+      if (commodityData[dateInput] && commodityData[dateInput][commodity]) {
+        botText = `The price of ${commodity} on ${dateInput} was ₹${commodityData[dateInput][commodity]}.`;
+      } else {
+        botText = `Sorry, I don't have the price data for ${commodity} on ${dateInput}.`;
+      }
+    }
+  
+    // Handle queries for today's commodity price
+    const todayMatch = question.match(/What is today's price of (.+)\?/i);
+    if (todayMatch) {
+      let commodity = todayMatch[1].trim().toLowerCase();
+      let today = new Date().toLocaleDateString("en-GB").replace(/\//g, "-"); // Convert to DD-MM-YYYY
+  
+      if (commodityData[today] && commodityData[today][commodity]) {
+        botText = `Today's price of ${commodity} is ₹${commodityData[today][commodity]} per unit.`;
+      } else {
+        botText = `Sorry, I don't have today's price data for ${commodity}.`;
+      }
+    }
+  
+    const botMessage = { id: messages.length + 2, text: botText, sender: "bot" };
+    setMessages((prev) => [...prev.slice(-3), botMessage]);
+  };
   
 
   return (
@@ -100,45 +210,22 @@ const ChatbotComponent = () => {
 
       <Paper sx={{ flex: 1, p: 2, mb: 2, borderRadius: 3, bgcolor: "#f5f5f5", overflowY: "auto", height: 400 }}>
         {messages.map((message) => (
-          <Box
-            key={message.id}
-            sx={{
-              display: "flex",
-              justifyContent: message.sender === "user" ? "flex-end" : "flex-start",
-              mb: 2,
-            }}
-          >
-            {message.sender === "bot" && (
-              <Avatar sx={{ bgcolor: "#4CAF50", width: 32, height: 32, mr: 1 }}>
-                <SmartToyIcon />
-              </Avatar>
-            )}
-            <Paper
-              sx={{
-                p: 1.5,
-                borderRadius: 3,
-                bgcolor: message.sender === "user" ? "#4CAF50" : "#e8f5e9",
-                color: message.sender === "user" ? "white" : "inherit",
-                maxWidth: "70%",
-                wordBreak: "break-word"
-              }}
-            >
+          <Box key={message.id} sx={{ display: "flex", justifyContent: message.sender === "user" ? "flex-end" : "flex-start", mb: 2 }}>
+            {message.sender === "bot" && <Avatar sx={{ bgcolor: "#4CAF50", width: 32, height: 32, mr: 1 }}><SmartToyIcon /></Avatar>}
+            <Paper sx={{ p: 1.5, borderRadius: 3, bgcolor: message.sender === "user" ? "#4CAF50" : "#e8f5e9", color: message.sender === "user" ? "white" : "inherit", maxWidth: "70%", wordBreak: "break-word" }}>
               <Typography variant="body2">{message.text}</Typography>
             </Paper>
-            {message.sender === "user" && (
-              <Avatar sx={{ bgcolor: "#81C784", width: 32, height: 32, ml: 1 }}>
-                <PersonIcon />
-              </Avatar>
-            )}
+            {message.sender === "user" && <Avatar sx={{ bgcolor: "#81C784", width: 32, height: 32, ml: 1 }}><PersonIcon /></Avatar>}
           </Box>
         ))}
-        {loading && (
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
-            <CircularProgress size={24} />
-          </Box>
-        )}
         <div ref={messagesEndRef} />
       </Paper>
+
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
+        {predefinedQuestions.map((question, index) => (
+          <Button key={index} variant="outlined" onClick={() => handleSend(question)} size="small">{question}</Button>
+        ))}
+      </Box>
 
       <Box sx={{ display: "flex", gap: 1 }}>
         <TextField
@@ -148,13 +235,12 @@ const ChatbotComponent = () => {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault(); // Prevent new line in input field
+              e.preventDefault();
               handleSend();
             }
           }}
-          disabled={loading}
         />
-        <IconButton color="primary" onClick={handleSend} disabled={!input.trim() || loading}>
+        <IconButton color="primary" onClick={handleSend} disabled={!input.trim()}>
           <SendIcon />
         </IconButton>
       </Box>
@@ -162,10 +248,318 @@ const ChatbotComponent = () => {
   );
 };
 
-export default ChatbotComponent;
+export default ChatBot;
+
 
 
 // import { useState, useRef, useEffect } from "react";
+// import { Box, TextField, IconButton, Typography, Paper, Avatar, CircularProgress, Button } from "@mui/material";
+// import SendIcon from "@mui/icons-material/Send";
+// import SmartToyIcon from "@mui/icons-material/SmartToy";
+// import PersonIcon from "@mui/icons-material/Person";
+
+// const predefinedQuestions = [
+//   "What is the average wholesale price of rice over the years?",
+//   "What is the average wholesale price of wheat over the years?",
+//   "How has the price of rice changed over the years?",
+//   "How has the price of wheat changed over the years?"
+// ];
+
+// const predefinedAnswers = {
+//   "What is the average wholesale price of rice over the years?": "The average wholesale price of rice from 2014 to 2024 is approximately ₹34.51 per kg.",
+//   "What is the average wholesale price of wheat over the years?": "The average wholesale price of wheat from 2014 to 2024 is approximately ₹28.76 per kg.",
+//   "How has the price of rice changed over the years?": "The yearly average wholesale prices of rice from 2014 to 2024 are: {2014: ₹30.02, 2015: ₹30.85, 2016: ₹31.83, 2017: ₹32.78, 2018: ₹33.60, 2019: ₹34.43, 2020: ₹35.41, 2021: ₹36.38, 2022: ₹37.21, 2023: ₹38.03, 2024: ₹39.02}",
+//   "How has the price of wheat changed over the years?": "The yearly average wholesale prices of wheat from 2014 to 2024 are: {2014: ₹25.01, 2015: ₹25.76, 2016: ₹26.43, 2017: ₹27.34, 2018: ₹28.07, 2019: ₹28.83, 2020: ₹29.57, 2021: ₹30.18, 2022: ₹31.01, 2023: ₹31.69, 2024: ₹32.48}"
+// };
+
+// const ChatBot = () => {
+//   const [messages, setMessages] = useState([
+//     { id: 1, text: "Hello! Ask me anything about commodity prices, trends, or market analysis.", sender: "bot" }
+//   ]);
+//   const [input, setInput] = useState("");
+//   const messagesEndRef = useRef(null);
+
+//   useEffect(() => {
+//     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+//   }, [messages]);
+
+//   const handleSend = (question = input) => {
+//     if (!question.trim()) return;
+
+//     const userMessage = { id: messages.length + 1, text: question, sender: "user" };
+//     setMessages((prev) => [...prev, userMessage]);
+//     setInput("");
+
+//     let botText = predefinedAnswers[question] || "I'm sorry, I don't have information on that.";
+//     const botMessage = { id: messages.length + 2, text: botText, sender: "bot" };
+//     setMessages((prev) => [...prev, botMessage]);
+//   };
+
+//   return (
+//     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", p: 2, maxWidth: 600, mx: "auto" }}>
+//       <Typography variant="h6" fontWeight="bold" mb={2} textAlign="center">
+//         Commodity Price Chatbot
+//       </Typography>
+
+//       <Paper sx={{ flex: 1, p: 2, mb: 2, borderRadius: 3, bgcolor: "#f5f5f5", overflowY: "auto", height: 400 }}>
+//         {messages.map((message) => (
+//           <Box key={message.id} sx={{ display: "flex", justifyContent: message.sender === "user" ? "flex-end" : "flex-start", mb: 2 }}>
+//             {message.sender === "bot" && <Avatar sx={{ bgcolor: "#4CAF50", width: 32, height: 32, mr: 1 }}><SmartToyIcon /></Avatar>}
+//             <Paper sx={{ p: 1.5, borderRadius: 3, bgcolor: message.sender === "user" ? "#4CAF50" : "#e8f5e9", color: message.sender === "user" ? "white" : "inherit", maxWidth: "70%", wordBreak: "break-word" }}>
+//               <Typography variant="body2">{message.text}</Typography>
+//             </Paper>
+//             {message.sender === "user" && <Avatar sx={{ bgcolor: "#81C784", width: 32, height: 32, ml: 1 }}><PersonIcon /></Avatar>}
+//           </Box>
+//         ))}
+//         <div ref={messagesEndRef} />
+//       </Paper>
+
+//       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
+//         {predefinedQuestions.map((question, index) => (
+//           <Button key={index} variant="outlined" onClick={() => handleSend(question)} size="small">{question}</Button>
+//         ))}
+//       </Box>
+
+//       <Box sx={{ display: "flex", gap: 1 }}>
+//         <TextField
+//           fullWidth
+//           placeholder="Ask about prices, trends, or predictions..."
+//           value={input}
+//           onChange={(e) => setInput(e.target.value)}
+//           onKeyDown={(e) => {
+//             if (e.key === "Enter" && !e.shiftKey) {
+//               e.preventDefault();
+//               handleSend();
+//             }
+//           }}
+//         />
+//         <IconButton color="primary" onClick={handleSend} disabled={!input.trim()}>
+//           <SendIcon />
+//         </IconButton>
+//       </Box>
+//     </Box>
+//   );
+// };
+
+// export default ChatBot;
+
+
+
+
+// import { useState, useRef, useEffect } from "react";
+// import { Box, TextField, IconButton, Typography, Paper, Avatar, CircularProgress } from "@mui/material";
+// import SendIcon from "@mui/icons-material/Send";
+// import SmartToyIcon from "@mui/icons-material/SmartToy";
+// import PersonIcon from "@mui/icons-material/Person";
+// import axios from "axios";
+
+// // const ChatbotComponent = () => {
+// //   const [messages, setMessages] = useState([
+// //     { id: 1, text: "Hello! Ask me anything about commodity prices, trends, or market analysis.", sender: "bot" }
+// //   ]);
+// //   const [input, setInput] = useState("");
+// //   const [loading, setLoading] = useState(false);
+// //   const messagesEndRef = useRef(null);
+
+// //   const scrollToBottom = () => {
+// //     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+// //   };
+
+// const ChatbotPage = () => {
+//   const [messages, setMessages] = useState([]);
+//   const [userInput, setUserInput] = useState("");
+
+//   // Handle input change
+//   const handleInputChange = (e) => {
+//     setUserInput(e.target.value);
+//   };
+
+//   useEffect(() => {
+//     scrollToBottom();
+//   }, [messages]);
+
+//   // const handleSend = async () => {
+//   //   if (input.trim() === "") return;
+
+//   //   const userMessage = { id: messages.length + 1, text: input, sender: "user" };
+//   //   setMessages((prev) => [...prev, userMessage]);
+//   //   setInput("");
+//   //   setLoading(true);
+
+//   //   try {
+//   //     const response = await axios.post("http://127.0.0.1:5000/chat", { message: input });
+
+//   //     const botMessage = {
+//   //       id: messages.length + 2,
+//   //       text: response.data.response || "Sorry, I couldn't find an answer.",
+//   //       sender: "bot"
+//   //     };
+
+//   //     setMessages((prev) => [...prev, botMessage]);
+//   //   } catch (error) {
+//   //     console.error("Error fetching response:", error);
+//   //     setMessages((prev) => [...prev, { id: messages.length + 2, text: "Error fetching response. Please try again.", sender: "bot" }]);
+//   //   } finally {
+//   //     setLoading(false);
+//   //   }
+//   // };
+
+
+//   // const handleSend = async () => {
+//   //   if (input.trim() === "") return;
+  
+//   //   const userMessage = { id: messages.length + 1, text: input, sender: "user" };
+//   //   setMessages((prev) => [...prev, userMessage]);
+//   //   setInput("");
+//   //   setLoading(true);
+  
+//   //   try {
+//   //     const response = await axios.post("http://127.0.0.1:5000/chat", { message: input });
+  
+//   //     console.log("API Response:", response.data); // ✅ Debugging
+  
+//   //     let botText = response.data.response || response.data.error || "Sorry, something went wrong.";
+  
+//   //     // ✅ If response is an array, limit displayed rows to avoid browser crash
+//   //     if (Array.isArray(botText)) {
+//   //       botText = botText.slice(0, 5).map(obj => JSON.stringify(obj, null, 2)).join("\n\n"); // ✅ Show only 10
+//   //     } else if (typeof botText === "object") {
+//   //       botText = JSON.stringify(botText, null, 2);
+//   //     }
+  
+//   //     const botMessage = {
+//   //       id: messages.length + 2,
+//   //       text: botText,
+//   //       sender: "bot",
+//   //     };
+  
+//   //     setMessages((prev) => [...prev, botMessage]);
+//   //   } catch (error) {
+//   //     console.error("Error fetching response:", error);
+//   //     setMessages((prev) => [
+//   //       ...prev,
+//   //       { id: messages.length + 2, text: "Error fetching response. Please try again.", sender: "bot" },
+//   //     ]);
+//   //   } finally {
+//   //     setLoading(false);
+//   //   }
+//   // };
+  
+
+//   const handleSendMessage = async () => {
+//     if (userInput.trim()) {
+//       const newMessage = {
+//         sender: "user",
+//         text: userInput,
+//       };
+//       setMessages((prevMessages) => [...prevMessages, newMessage]);
+//       setUserInput(""); // Clear the input field
+
+//       try {
+//         // Send user message to the Flask backend
+//         const response = await fetch("http://localhost:5000/chat", {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json" },
+//           body: JSON.stringify({ message: userInput }),
+//         });
+
+//         const data = await response.json();
+//         const botMessage = {
+//           sender: "bot",
+//           text: data.response,  // Get the bot's response from the backend
+//         };
+
+//         // Add bot response to messages
+//         setMessages((prevMessages) => [...prevMessages, botMessage]);
+//       } catch (error) {
+//         console.error("Error:", error);
+//         const errorMessage = {
+//           sender: "bot",
+//           text: "Sorry, there was an issue processing your request.",
+//         };
+//         setMessages((prevMessages) => [...prevMessages, errorMessage]);
+//       }
+//     }
+//   };
+
+  
+  
+  
+
+//   return (
+//     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", p: 2, maxWidth: 600, mx: "auto" }}>
+//       <Typography variant="h6" fontWeight="bold" mb={2} textAlign="center">
+//         Commodity Price Chatbot
+//       </Typography>
+
+//       <Paper sx={{ flex: 1, p: 2, mb: 2, borderRadius: 3, bgcolor: "#f5f5f5", overflowY: "auto", height: 400 }}>
+//         {messages.map((message) => (
+//           <Box
+//             key={message.id}
+//             sx={{
+//               display: "flex",
+//               justifyContent: message.sender === "user" ? "flex-end" : "flex-start",
+//               mb: 2,
+//             }}
+//           >
+//             {message.sender === "bot" && (
+//               <Avatar sx={{ bgcolor: "#4CAF50", width: 32, height: 32, mr: 1 }}>
+//                 <SmartToyIcon />
+//               </Avatar>
+//             )}
+//             <Paper
+//               sx={{
+//                 p: 1.5,
+//                 borderRadius: 3,
+//                 bgcolor: message.sender === "user" ? "#4CAF50" : "#e8f5e9",
+//                 color: message.sender === "user" ? "white" : "inherit",
+//                 maxWidth: "70%",
+//                 wordBreak: "break-word"
+//               }}
+//             >
+//               <Typography variant="body2">{message.text}</Typography>
+//             </Paper>
+//             {message.sender === "user" && (
+//               <Avatar sx={{ bgcolor: "#81C784", width: 32, height: 32, ml: 1 }}>
+//                 <PersonIcon />
+//               </Avatar>
+//             )}
+//           </Box>
+//         ))}
+//         {loading && (
+//           <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
+//             <CircularProgress size={24} />
+//           </Box>
+//         )}
+//         <div ref={messagesEndRef} />
+//       </Paper>
+
+//       <Box sx={{ display: "flex", gap: 1 }}>
+//         <TextField
+//           fullWidth
+//           placeholder="Ask about prices, trends, or predictions..."
+//           value={input}
+//           onChange={(e) => setInput(e.target.value)}
+//           onKeyDown={(e) => {
+//             if (e.key === "Enter" && !e.shiftKey) {
+//               e.preventDefault(); // Prevent new line in input field
+//               handleSendMessage();
+//             }
+//           }}
+//           disabled={loading}
+//         />
+//         <IconButton color="primary" onClick={handleSend} disabled={!input.trim() || loading}>
+//           <SendIcon />
+//         </IconButton>
+//       </Box>
+//     </Box>
+//   );
+// };
+
+// export default ChatbotPage;
+
+
+// // import { useState, useRef, useEffect } from "react";
 // import { Box, TextField, IconButton, Typography, Paper, Avatar, CircularProgress } from "@mui/material";
 // import SendIcon from "@mui/icons-material/Send";
 // import SmartToyIcon from "@mui/icons-material/SmartToy";
